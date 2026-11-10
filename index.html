@@ -183,7 +183,8 @@ const NAV = [
  ["PAN-03","PAN-06","Registrar abonado (sin resultados)"],
  ["PAN-04","PAN-05","Cargar documento / Nueva versión"],
  ["PAN-04","PAN-13","Ver versiones"],
- ["PAN-04","PAN-06","Modificar abonado / Cambiar titular"],
+ ["PAN-04","PAN-06","Modificar abonado / Agregar o quitar personas"],
+ ["PAN-04","D-04","Cambiar titular…"],
  ["PAN-04","PAN-12","Exportar"],
  ["PAN-04","PAN-07","Ver qué falta"],
  ["PAN-04","D-01","Anular"],["D-01","PAN-04","Anular (confirmado)"],
@@ -295,7 +296,6 @@ function faltantes(){
   return f;
 }
 function irA(h){ if(location.hash===h) render(); else location.hash=h; }
-const PROP=`<span class="tag prop" title="Propuesta del equipo para validar con la administradora">Propuesta por validar</span>`;
 
 /* Estado del respaldo que muestra el encabezado (coherente con PAN-02 y PAN-08) */
 function backupChip(){
@@ -377,7 +377,7 @@ SCREENS["PAN-03"]=st=>{
   } else if(st==="inicial"){ body=crit("","")+M("info","Escriba al menos un criterio y presione «Buscar».","Puede combinar criterios: por ejemplo, un apellido y el sector."); }
   else if(st==="cargando"){ body=crit()+`<p role="status"><span class="spinner"></span>Buscando en 1 015 expedientes…</p><div class="panel"><div class="skel"></div><div class="skel"></div><div class="skel" style="width:70%"></div></div>`; }
   else if(st==="sin-resultados"){ body=crit("9999","","","Todos")+M("info","No hay expedientes con el número de paja «9999».",`Revise el número o busque por el nombre del titular. Si el abonado es nuevo, puede <a ${go("PAN-06")}>registrarlo</a>.`); }
-  else if(st==="error"){ body=crit("04 12","","","Todos","bad","El número de paja no puede llevar espacios. Escríbalo sin espacios, por ejemplo 0412."); }
+  else if(st==="error"){ body=crit("04 12","","","Todos","bad","El número de paja solo lleva números (puede empezar con cero). Escríbalo sin espacios, letras ni guiones, por ejemplo 0412."); }
   else if(st==="mas-de-50"){ body=crit("","","","Bodegas")+M("warn","Se muestran los primeros 50 de 214 expedientes del sector Bodegas.","Agregue el nombre o el número de paja para acotar la búsqueda.")+T(head,BODEGAS.map(row),"Resultados de la búsqueda"); }
   else { const term=q||(current.s?"":"mora"); const sec=current.s||"Todos"; const norm=x=>x.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
     const todos=[...ABONADOS,...BODEGAS.slice(0,3)].sort((a,b)=>a.paja.localeCompare(b.paja));
@@ -437,7 +437,7 @@ SCREENS["PAN-04"]=st=>{
    <div class="panel"><h2 style="margin-top:0">Personas del expediente</h2>
    ${T(["Persona","Identificación","Rol","Desde"],pers)}
    <details style="margin-top:8px"><summary>Historial de titulares (${S.titular?2:1} anterior${S.titular?"es":""})</summary>${hist}</details>
-   <div class="actions"><a class="btn sm" ${go("PAN-06?estado=modificar")}>Agregar o quitar personas</a><a class="btn sm" ${go("PAN-06?estado=modificar")}>Cambiar titular</a></div></div>
+   <div class="actions"><a class="btn sm" ${go("PAN-06?estado=modificar")}>Agregar o quitar personas</a><a class="btn sm" ${dl("D-04","PAN-04")}>Cambiar titular…</a></div></div>
   </div>
   <div class="split"><div>
    <h2>Documentos (${docs.length}) · ordenados por prioridad del tipo</h2>
@@ -538,7 +538,7 @@ SCREENS["PAN-06"]=st=>{
   const nuevo = ["nuevo","cargando","error","exito","persona-existente"].includes(st);
   const imp = st==="importado", e = st==="error", pe = st==="persona-existente";
   if(st==="exito") return shell("PAN-06",`<h1>Registrar abonado</h1>${M("ok","Abonado 0533 registrado con su titular vigente.","Quedó en la bitácora a nombre de la cuenta secretaria. Ahora puede cargar sus documentos.")}<div class="actions"><a class="btn pri" ${go("PAN-05")}>Cargar documentos</a><a class="btn" ${go("PAN-04?estado=vacio")}>Ver expediente</a><a class="btn" ${go("PAN-06")}>Registrar otro</a></div>`);
-  const pajaF = F("Número de paja",`<input value="${nuevo?(e?"0412":"0533"):(imp?"1021":"0412")}" ${nuevo?"":"disabled"} class="${e?"bad":""}">`,{req:true,err:e?`El número de paja 0412 ya está registrado (Ana Lucía Mora Vega). Revise el número o abra ese expediente.`:"",hint:nuevo?"No se repite y no se puede cambiar después.":"El número de paja no se puede cambiar."});
+  const pajaF = F("Número de paja",`<input value="${nuevo?(e?"0412":"0533"):(imp?"1021":"0412")}" ${nuevo?"":"disabled"} class="${e?"bad":""}">`,{req:true,err:e?`El número de paja 0412 ya está registrado (Ana Lucía Mora Vega). Revise el número o abra ese expediente.`:"",hint:nuevo?"Solo números; puede empezar con cero. No se repite y no se puede cambiar después.":"El número de paja no se puede cambiar."});
   const tipo = `<fieldset class="field" style="border:none;padding:0;margin:0"><legend class="lbl" style="font-weight:600;font-size:14px">Tipo de abonado <span class="req">(obligatorio)</span></legend><div class="row" style="gap:16px">${["Persona física","Persona jurídica"].map(t=>`<label><input type="radio" name="t" ${(!imp&&t==="Persona física")?"checked":""} style="min-height:0"> ${t}</label>`).join("")}</div>${imp?`<div class="errtxt">Tipo pendiente: elija uno para que se pueda calcular la completitud.</div>`:`<div class="hint">Define qué documentos son obligatorios.</div>`}</fieldset>`;
   const idNum = imp?"":(e?"1-0000-012":(pe?"1-0000-0123":(nuevo?"1-0000-0222":"1-0000-0123")));
   const idF = `<div class="row" style="align-items:flex-start">${F("Tipo de identificación",`<select class="${e?"bad":""}"><option>Cédula física</option><option>Cédula jurídica</option><option>DIMEX</option><option>Pasaporte</option></select>`,{req:!imp})}${F("Número de identificación",`<input value="${idNum}" class="${e?"bad":""}" placeholder="1-0000-0000">`,{req:!imp,err:e?"La cédula física tiene 9 dígitos (ejemplo 1-0000-0123) y aquí hay 8. Revise el número.":"",hint:"Cédula física: 9 dígitos (0-0000-0000) · jurídica: 10 (3-000-000000) · DIMEX: 11 o 12 · pasaporte: letras y números."})}</div>`;
@@ -622,7 +622,7 @@ SCREENS["PAN-08"]=st=>{
   return shell("PAN-08",`<h1>Respaldo y restauración</h1><p class="sub">SIGEDA hace un respaldo completo y cifrado todos los días. Aquí ve si salió bien y puede hacer uno a mano o restaurar.</p>${msg}${act}
   <div class="grid2">${estado}
    <div class="panel"><h2 style="margin-top:0">Acciones</h2><div class="actions" style="margin-top:0"><a class="btn pri" ${st==="cargando"?'aria-disabled="true"':""} ${go("PAN-08?estado=hecho")} onclick="if(INTERACTIVO()){location.hash='#/PAN-08?estado=cargando';return false}">Respaldar ahora</a><a class="btn danger" ${dl("D-05")}>Restaurar un respaldo…</a></div>
-   <p class="hint">Restaurar reemplaza los abonados y documentos actuales por los del respaldo elegido. La bitácora no se borra: se agrega el registro de la restauración. ${PROP} restaurar requiere la autorización de la Administración.</p>
+   <p class="hint">Restaurar reemplaza los abonados y documentos actuales por los del respaldo elegido. La bitácora no se borra: se agrega el registro de la restauración. Restaurar requiere la autorización de la Administración.</p>
    <dl class="kv" style="margin-top:8px"><dt>Prueba de restauración en otra computadora</dt><dd>Pendiente (propuesta: cada 3 meses) · <a ${go("PAN-08?estado=prueba")}>Registrar prueba</a></dd><dt>Archivos en cuarentena</dt><dd>2 · <a ${go("PAN-08?estado=cuarentena")}>ver lista</a></dd></dl></div></div>
   <h2>Últimos respaldos (se conservan 7 diarios y 4 semanales)</h2>${hist}`);
 };
@@ -695,7 +695,7 @@ SCREENS["PAN-13"]=st=>{
   <div><div class="viewer"><div class="ph"></div><b>${selV.n===top?"v"+selV.n+" · vigente":"v"+selV.n} · ${tipo}</b><span class="hint">Fecha del documento ${selV.fd}</span></div></div></div>`);
 };
 
-SCREENS["PAN-14"]=st=>shell("PAN-14",`<h1>Mi cuenta</h1><p class="sub">Sesión de la Secretaría (usuario <b>secretaria</b>). Las dos cuentas tienen los mismos permisos ${PROP} salvo restaurar respaldos, que requeriría a la Administración.</p>
+SCREENS["PAN-14"]=st=>shell("PAN-14",`<h1>Mi cuenta</h1><p class="sub">Sesión de la Secretaría (usuario <b>secretaria</b>). Las dos cuentas tienen los mismos permisos, salvo restaurar respaldos, que requiere la autorización de la Administración.</p>
  ${st==="error"?M("error","La contraseña nueva tiene 6 caracteres y el mínimo es 8.","Escriba una contraseña de al menos 8 caracteres."):""}
  <div class="grid2"><form class="panel" onsubmit="return false"><h2 style="margin-top:0">Cambiar mi contraseña</h2>
   ${F("Contraseña actual",`<input type="password" autocomplete="current-password" value="••••••••">`,{req:true})}
@@ -714,7 +714,7 @@ const DLG={
  "D-02":()=>`<h2 id="dlgt">Editar datos del documento</h2>${F("Tipo de documento",tipoSel("Formulario de solicitud"),{req:true})}${F("Nombre identificador",`<input value="Solicitud de servicio">`)}<p class="hint">El archivo, la fecha del documento y las versiones anteriores no cambian. El valor anterior y el nuevo quedan en la bitácora.</p><div class="actions"><a class="btn" ${back()}>Cancelar</a><a class="btn pri" ${go("PAN-04")}>Guardar</a></div>`,
  "D-03":()=>`<h2 id="dlgt">Dar de baja el abonado 0412</h2><p>El expediente y sus documentos se conservan y se pueden consultar. El abonado deja de contar en el avance de completitud. Puede reactivarlo después.</p>${F("Fecha de la baja",`<input value="${HOY}">`,{req:true,hint:"dd/mm/aaaa"})}<div class="actions"><a class="btn" ${back()}>Cancelar</a><a class="btn danger" ${go("PAN-04")}>Dar de baja</a></div>`,
  "D-04":()=>`<h2 id="dlgt">Cambiar titular · paja 0412</h2><p>Titular actual: <b>${titularActual()}</b></p>${F("Nuevo titular",`<input id="d4n" list="d4l" placeholder="Escriba el nombre o la cédula"><datalist id="d4l"><option value="Esteban Mora Vega (cotitular, 2-0000-0456)"></option></datalist>`,{req:true,hint:"Busque una persona registrada o agregue una nueva."})}<div class="errtxt" id="d4e" style="display:none">Escriba el nombre del nuevo titular.</div>${F("Fecha del cambio",`<input id="d4f" value="${HOY}">`,{req:true,hint:"dd/mm/aaaa"})}${M("warn",`${titularActual()} dejará de verse como titular en búsquedas y pantallas.`,`Queda en el historial de titulares con la fecha del cambio como fecha fin. Sus documentos se conservan. El tipo de abonado no cambia.`)}<div class="actions"><a class="btn" ${back()}>Cancelar</a><a class="btn pri" ${go("PAN-04")} onclick="return cambiarTitular()">Confirmar cambio de titular</a></div>`,
- "D-05":()=>`<h2 id="dlgt">Restaurar un respaldo</h2><form onsubmit="return false" oninput="checkD05()">${F("Respaldo",`<select>${RESPALDOS.map(r=>`<option>${r[0]} · ${r[1]} · ${r[3]}</option>`).join("")}</select>`,{req:true})}${M("error","Se reemplazarán TODOS los abonados y documentos actuales por los del respaldo elegido.","Lo que se haya hecho después de esa fecha se perderá. Antes de restaurar, SIGEDA hace un respaldo del estado actual. La bitácora no se borra.")}${F("Clave de cifrado",`<input type="password" id="d5k" autocomplete="off" placeholder="Copia física o digital de la clave">`,{req:true})}<p class="hint" style="margin:6px 0">${PROP} Autorización de la Administración (usuario <b>administracion</b>):</p>${F("Contraseña de la Administración",`<input type="password" id="d5a" autocomplete="off">`,{req:true})}${F("Escriba RESTAURAR para confirmar",`<input id="d5c" autocomplete="off">`,{req:true})}<div class="actions"><a class="btn" ${back()}>Cancelar</a><a class="btn danger" id="d5b" aria-disabled="true" ${go("PAN-08?estado=hecho")}>Restaurar</a></div><p class="hint" id="d5h">El botón se activa al completar la clave, la autorización y la palabra RESTAURAR.</p></form>`,
+ "D-05":()=>`<h2 id="dlgt">Restaurar un respaldo</h2><form onsubmit="return false" oninput="checkD05()">${F("Respaldo",`<select>${RESPALDOS.map(r=>`<option>${r[0]} · ${r[1]} · ${r[3]}</option>`).join("")}</select>`,{req:true})}${M("error","Se reemplazarán TODOS los abonados y documentos actuales por los del respaldo elegido.","Lo que se haya hecho después de esa fecha se perderá. Antes de restaurar, SIGEDA hace un respaldo del estado actual. La bitácora no se borra.")}${F("Clave de cifrado",`<input type="password" id="d5k" autocomplete="off" placeholder="Copia física o digital de la clave">`,{req:true})}<p class="hint" style="margin:6px 0">Autorización de la Administración (usuario <b>administracion</b>):</p>${F("Contraseña de la Administración",`<input type="password" id="d5a" autocomplete="off">`,{req:true})}${F("Escriba RESTAURAR para confirmar",`<input id="d5c" autocomplete="off">`,{req:true})}<div class="actions"><a class="btn" ${back()}>Cancelar</a><a class="btn danger" id="d5b" aria-disabled="true" ${go("PAN-08?estado=hecho")}>Restaurar</a></div><p class="hint" id="d5h">El botón se activa al completar la clave, la autorización y la palabra RESTAURAR.</p></form>`,
  "D-06":()=>`<h2 id="dlgt">Agregar persona asociada</h2><p class="hint">Busque primero si la persona ya está registrada, para no duplicarla.</p>${F("Buscar por cédula o nombre",`<input value="2-0000-0456">`)}${T(["Persona","Identificación","Vínculos actuales",""],[`<tr><td>Esteban Mora Vega</td><td>2-0000-0456</td><td>Cotitular de 0412</td><td><a class="btn sm" ${go("PAN-06?estado=modificar")}>Elegir</a></td></tr>`],"Personas encontradas")}<p class="hint" style="margin-top:10px">¿No aparece? Registre una persona nueva:</p><div class="row">${F("Nombre completo",`<input>`,{req:true})}${F("Rol",`<select><option>Cotitular</option><option>Apoderada</option></select>`,{req:true})}</div><div class="row">${F("Tipo de identificación",`<select><option>Cédula física</option><option>Cédula jurídica</option><option>DIMEX</option><option>Pasaporte</option></select>`,{req:true})}${F("Número",`<input placeholder="1-0000-0000">`,{req:true})}${F("Desde",`<input value="${HOY}">`,{req:true,hint:"dd/mm/aaaa"})}</div><div class="actions"><a class="btn" ${back()}>Cancelar</a><a class="btn pri" ${go("PAN-06?estado=modificar")}>Agregar al expediente</a></div>`,
  "D-07":()=>`<h2 id="dlgt">¿Salir sin guardar?</h2><p>Eligió 2 archivos y escribió sus datos. Si sale ahora, no se guarda nada.</p><div class="actions"><a class="btn" ${back()}>Seguir cargando</a><a class="btn danger" ${go("PAN-04")}>Salir sin guardar</a></div>`,
  "D-08":()=>`<h2 id="dlgt">Su sesión se va a cerrar</h2><p>Lleva casi 15 minutos sin usar SIGEDA. Por seguridad, la sesión se cerrará en <b>60 segundos</b>. Lo que no haya guardado se perderá.</p><div class="actions"><a class="btn" ${go("PAN-01")}>Cerrar sesión</a><a class="btn pri" ${back()}>Seguir trabajando</a></div>`
@@ -732,7 +732,7 @@ function buscarExp(btn){
   if(!INTERACTIVO()) return true;
   const pn=btn.closest(".panel"); const ins=pn.querySelectorAll("input:not([type=checkbox])"); const sec=pn.querySelector("select").value;
   const paja=ins[0].value.trim(), nom=ins[1].value.trim(), idn=ins[2].value.trim();
-  if(/\s/.test(paja)){ location.hash="#/PAN-03?estado=error"; return false; }
+  if(paja && !/^\d+$/.test(paja)){ location.hash="#/PAN-03?estado=error"; return false; }
   if(!paja&&!nom&&!idn&&(!sec||sec==="Todos")){ location.hash="#/PAN-03?estado=inicial"; return false; }
   location.hash=`#/PAN-03?estado=exito&q=${encodeURIComponent(paja||nom||idn)}${sec&&sec!=="Todos"?"&s="+encodeURIComponent(sec):""}`; return false;
 }
@@ -787,6 +787,17 @@ function buildPanel(){
   p.querySelectorAll("a:not(#tg)").forEach(a=>a.addEventListener("click",()=>document.getElementById("proto").classList.remove("open")));
   document.getElementById("tg").onclick=e=>{e.preventDefault();HIFI=!HIFI;const u=new URL(location.href);u.searchParams.delete("hifi");history.replaceState(null,"",u);render();};
 }
+/* H-01 (evaluación del 10/11/2026): Enter envía el formulario con su botón principal */
+document.addEventListener("keydown",e=>{
+  if(e.key!=="Enter"||e.isComposing) return;
+  const t=e.target; if(!t.matches || !t.matches("input:not([type=checkbox]):not([type=radio]),select")) return;
+  if(t.closest("form.quick")) return; /* la búsqueda rápida ya es un formulario */
+  const scope=t.closest("dialog")||t.closest("form")||t.closest(".panel"); if(!scope) return;
+  const sel="a.btn.pri:not([aria-disabled=true]),a.btn.danger:not([aria-disabled=true])";
+  let b=scope.querySelector(scope.matches("dialog")?sel:"a.btn.pri:not([aria-disabled=true])");
+  if(!b){ let n=scope.nextElementSibling; while(n&&!n.matches(".actions")) n=n.nextElementSibling; if(n) b=n.querySelector("a.btn.pri:not([aria-disabled=true])"); }
+  if(b){ e.preventDefault(); b.click(); }
+});
 document.getElementById("protoBtn").onclick=()=>document.getElementById("proto").classList.toggle("open");
 document.addEventListener("click",e=>{ const a=e.target.closest('a[aria-disabled="true"]'); if(a){ e.preventDefault(); } });
 render();
